@@ -3,6 +3,7 @@ const User = require("../models/Users");
 var router = express.Router();
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const { authUser } = require("../middleware/auth");
 require("dotenv").config;
 
 /* GET users listing. */
@@ -10,14 +11,15 @@ router.get("/", function (req, res, next) {
   res.send("respond with a resource");
 });
 
-router.post("/admin/signup", async (req, res) => {
+/* ============================================SIGN UP========================================================*/
+
+router.post("/admin/signup", authUser, async (req, res) => {
   try {
     const { firstName, lastName, email, username, password, passConfirm } =
       req.body;
 
     const saltRounds = 10;
     const hashedPass = await bcrypt.hash(passConfirm, saltRounds);
-    // console.log(hashedPass);
     const user = await User.create({
       firstName,
       lastName,
@@ -32,7 +34,7 @@ router.post("/admin/signup", async (req, res) => {
         expiresIn: maxAge,
       });
 
-      return res.status(200).json({ user: user.username });
+      return res.status(200).json({ user: user, authToken: token });
     } else {
       return res.status(500).json({ message: "internal server error" });
     }
@@ -41,6 +43,7 @@ router.post("/admin/signup", async (req, res) => {
   }
 });
 
+/* ============================================LOGIN========================================================*/
 router.post("/admin/login", async (req, res) => {
   const { email, password } = req.body;
 

@@ -7,7 +7,7 @@ const authUser = async (req, res, next) => {
     const tokenWithBearer = req.headers["authorization"];
 
     if (!tokenWithBearer || !tokenWithBearer.startsWith("Bearer ")) {
-      console.log("No token provided or invalid format");
+      console.log("Unauthorized");
       return res.status(401).json({ message: "Unauthorized" });
     }
 
