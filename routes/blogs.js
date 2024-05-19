@@ -42,18 +42,33 @@ router.post("/", multerUpload.single("image"), async (req, res) => {
   const { title, content, blogger, category, summary } = req.body;
 
   try {
-    const { path } = req.file;
-    const { imageUrl, publicId } = await uploadImageToCloudinary(path);
-    const newblog = await Blog.create({
+    let imageUrl = null;
+    let imageId = null;
+
+    if (req.file) {
+      const { path } = req.file;
+      const { imageUrl: uploadedImageUrl, publicId: uploadedImageId } =
+        await uploadImageToCloudinary(path);
+      imageUrl = uploadedImageUrl;
+      imageId = uploadedImageId;
+    }
+
+    const newBlogData = {
       title,
       summary,
       content,
       category,
       blogger,
-      image: imageUrl,
-      imageId: publicId,
-    });
-    if (newblog) {
+    };
+
+    if (imageUrl) {
+      newBlogData.image = imageUrl;
+      newBlogData.imageId = imageId;
+    }
+
+    const newBlog = await Blog.create(newBlogData);
+
+    if (newBlog) {
       return res.status(200).json({ message: "Blog added successfully" });
     } else {
       return res.status(400).json({ message: "Blog could not be added" });
@@ -72,31 +87,51 @@ router.put("/:id", multerUpload.single("image"), async (req, res) => {
   const { id } = req.params;
 
   try {
-    const { title, content, blogger, category } = req.body;
+    const { title, content, blogger, category, removeImage } = req.body;
     const blog = await Blog.findById(id);
 
-    if (req.file) {
+    // Check if the removeImage flag is set to true
+    if (removeImage === "true") {
+      // If removeImage is true, delete the image from Cloudinary if it exists
+      if (blog.imageId) {
+        await cloudinaryDelete(blog.imageId);
+        // Clear the image and imageId fields from the blog
+        blog.image = undefined;
+        blog.imageId = undefined;
+      }
+    } else if (req.file) {
+      // If a new image was uploaded
       const { path } = req.file;
-      console.log(req.file);
-      await cloudinaryDelete(blog.imageId);
 
+      // Delete the previous image from Cloudinary if it exists
+      if (blog.imageId) {
+        await cloudinaryDelete(blog.imageId);
+      }
+
+      // Upload the new image to Cloudinary
       const { imageUrl, publicId } = await uploadImageToCloudinary(path);
 
+      // Update blog with new image data
       blog.image = imageUrl;
       blog.imageId = publicId;
     }
 
+    // Update blog with other fields
     blog.title = title;
     blog.content = content;
     blog.blogger = blogger;
     blog.category = category;
+
+    // Save the updated blog
     await blog.save();
+
     return res.status(200).json({ message: "Updated successfully" });
   } catch (error) {
-    console.log("Error Updating Blog", error);
+    console.error("Error Updating Blog", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 });
+
 /* ========================= END ========================================================*/
 
 /* =========================DELETE A BLOG========================================================*/
